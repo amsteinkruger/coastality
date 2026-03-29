@@ -7,3 +7,6 @@
 
 ---
 
+ - What's the ideal Oregon coastline (in available spatial data)?
+ - Is there an easy reference for the hedonic ideal?
+ - What's the deal with endogeneity in gentrification?
