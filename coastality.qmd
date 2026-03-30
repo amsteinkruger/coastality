@@ -1,0 +1,147 @@
+---
+title: "Coastal Gentrification Sketch"
+format: pdf
+editor: visual
+---
+
+## Intro
+
+This markdown describes initial work toward a project on gentrification on the Oregon coast.
+
+Code under version control is in [this GitHub repo](https://github.com/amsteinkruger/coastality).
+
+All files are in [this folder on Box](https://oregonstate.box.com/s/s4hulaere6td5xcbmkm0ku3ocgzywsw4).
+
+## Background
+
+Gentrification describes local-to-regional processes of displacement and social transformation in communities subject to in-migration associated with increasing housing prices and property taxes. There extensive literatures on gentrification in geography and sociology, and a somewhat smaller literature in economics. Some useful insights from economics include spatial sorting, endogenous amenities, and rigorous handling of heterogeneous effects over resident demographics.
+
+Rural gentrification extends the concept beyond cities. A couple key points are that environmental amenities (may) drive migration and tourism and that rural communities are all unique, in the spirit of that Tolstoy quote about happy and unhappy families. The literature focused on rural gentrification is all in geography and sociology; economists get at rural gentrification issues incidental to other research.
+
+Coastal gentrification narrows the concept to (rural) coastal settings, where coastal amenities and livelihoods dominate the decisions of both incumbent and in-migrant residents (or tourists). There are only a handful of works on coastal gentrification in sociology and geography.
+
+To the best of my knowledge, there is no work in economics on coastal gentrification.
+
+## Theory
+
+To get this sketch written before 3/30, I neglect a formal model.
+
+A couple of necessary features for a formal model are:
+
+1.  Sorting on individual and community attributes
+
+2.  Endogeneity of housing prices and amenities
+
+## Data
+
+I use processed Cotality data on housing prices and attributes, plus buyer and seller attributes.
+
+Other data that might be neat to have are:
+
+1.  Business entry/exit to get at endogeneous change in amenities
+
+2.  Environmental features, e.g. viewsheds
+
+3.  Coastal infrastructure, e.g. formal coastal access points
+
+4.  Activities specific to incumbent livelihoods, e.g. fisheries participation
+
+5.  Activities specific to tourism, e.g. visitation and short-term rentals
+
+## Empirics
+
+Ideally, I would set up an econometric model with hedonics and a clever instrument or treatment.
+
+For the moment, I have:
+
+1.  Visualized a few variables of interest.
+
+2.  Estimated a few linear models for key relationships.
+
+Critically, I use longitude to approximate distance from the coast – this is silly but quick.
+
+I did not check whether sale amounts are in nominal or real dollars.
+
+I did not preserve initial attempts at a hedonic model.
+
+This is all in R with packages tidyverse and terra (among others).
+
+## Exploratory Results
+
+These results are limited to sales in Lincoln County for 2001-2025.
+
+There are a lot of assumptions made in this casual exploration – I'll nail them down later.
+
+### Residency and Sale Value
+
+Do buyers with mailing addresses outside coastal cities in Oregon go in for costlier properties?
+
+![](out_small/vis_inmigrate.png)
+
+They do, on average, but not by much.
+
+There are 509 NAs, 13,073 residents (0), 13,680 nonresidents (1).
+
+### Time and Sale Value
+
+Are properties worth more as time goes on?
+
+![](out_small/vis_time.png)
+
+Yes, but not by as much as I would've expected. The pre-2008 bubble is a neat feature.
+
+This result cries out for a closer look by quantile.
+
+### Longitude (Proxying for Coastal Distance) and Sale Value
+
+Are properties further from the coast worth more?
+
+![](out_small/vis_longitude.png)
+
+If you squint, sure.
+
+I'm looking forward to setting up better distance measurements, among other amenity proxies.
+
+### Has the coastal premium increased in time?
+
+If coastal gentrification is amenity-driven and increasing in time, we might expect the value of properties to increase with the interaction of years (as numeric values representing a linear process in time) and distance from the coast (proxied for by longitude). This isn't really an economic intuition, but it could be a nice validation of anecdotal evidence.
+
+![](out_small/vis_both.png)
+
+The coastal premium appears to have increased in time!\*
+
+\*Subject to all the measurement issues mentioned up to this point.
+
+I speculate that the bipolar distribution is related to differences between communities.
+
+### Does any of this hold up in simple linear models?
+
+![](out_small/table.png)
+
+The coefficient magnitudes are difficult to parse – clearly some variable tuning would be useful.
+
+A few things stand out.
+
+Whether a buyer is an OR coast resident doesn't obviously matter.
+
+The relationships we visualized for other variables are all borne out in the linear models.
+
+The time trend explains a fair chunk of the variation in the data; longitude explains little.
+
+## Discussion and Next Steps
+
+This is all to check whether an economic study of coastal gentrification in Oregon might have legs.
+
+The basic trends visualized and modeled here suggest "yes" – basic trends in housing prices over time and space check out, and clearly the full dataset has the temporal and geographic range to support a more credible econometric approach. But that sets up more questions.
+
+1.  In the literature collected in this project's files and glossed above, are there models that fit the coastal context with little or no modification? What are their limitations that I could improve on?
+
+2.  Is there a standard, modern reference for hedonic valuation generally?
+
+3.  What empirical approaches to coastal amenities could be useful to borrow and extend?
+
+4.  What data might fill in some of the wishlist items from "Data" above?
+
+A final note: it looks to me like available data would support really great work on coastal gentrification, but not a really detailed look at the relationship between gentrification and coastal livelihoods. I believe data from Alaska's Kenai Peninsula Borough and Commercial Fisheries Entry Commission could offer direct evidence for that relationship; KPB has excellent public cadastral data, and CFEC has exhaustive annual, individual-level data on commercial fisheries participation (permit ownership, not crewing). I'm interested in pushing work on Oregon forward to set up an initial contribution for a decent journal, then turning to a quick look at Alaska for an extension of the Oregon work that might fit a humbler coastal/marine journal.
+
+Thanks for scrolling through, sorry for the novel!

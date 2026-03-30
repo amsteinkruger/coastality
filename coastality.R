@@ -6,6 +6,7 @@ library(tidyverse)
 library(terra)
 library(tidyterra)
 library(haven)
+library(viridis)
 
 #  Parameters
 
@@ -70,18 +71,24 @@ vis_inmigrate =
   dat_flat_lincoln_less %>% 
   ggplot(aes(x = sale_amount %>% log, 
              y = buyer_loc %>% factor,
-             fill = stat(x))) +
-  geom_density_ridges_gradient(scale = 1.33,
+             fill = after_stat(x))) +
+  geom_density_ridges_gradient(scale = 0.95,
                                quantile_lines = TRUE, 
                                quantiles = 2) +
   scale_x_continuous(expand = c(0, 0)) +
   scale_y_discrete(expand = c(0, 0)) +
   scale_fill_viridis(option = "C") +
   labs(x = "Sale Amount (Log.) (Nominal?)",
-       y = "Incumbents (0), In-Migrants (1), ",
+       y = "Densities by Buyer Residency",
        fill = NULL) +
   theme_minimal() +
   theme(legend.position = "none")
+
+ggsave("out_small/vis_inmigrate.png",
+       vis_inmigrate,
+       dpi = 300,
+       width = 4.5,
+       height = 3)
 
 #   Are sale amounts increasing in time?
 
@@ -95,9 +102,13 @@ vis_time =
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-#   Are sale amounts decreasing in longitude (increasing in proximity to the coast)?
+ggsave("out_small/vis_time.png",
+       vis_time,
+       dpi = 300,
+       width = 4.5,
+       height = 3)
 
-library(viridis)
+#   Are sale amounts decreasing in longitude (increasing in proximity to the coast)?
 
 vis_longitude =
   dat_flat_lincoln_less %>% 
@@ -120,6 +131,12 @@ vis_longitude =
   theme_minimal() +
   theme(axis.text = element_blank(),
         legend.ticks = element_blank())
+
+ggsave("out_small/vis_longitude.png",
+       vis_longitude,
+       dpi = 300,
+       width = 4.5,
+       height = 3)
 
 #  Are sale amounts decreasing in the product of longitude and years?  
 
@@ -147,6 +164,12 @@ vis_both =
   theme(axis.text = element_blank(),
         legend.ticks = element_blank())
 
+ggsave("out_small/vis_both.png",
+       vis_both,
+       dpi = 300,
+       width = 4.5,
+       height = 3)
+
 #  Descriptive Models
 
 mod_0 = 
@@ -173,3 +196,21 @@ mod_4 =
   dat_flat_lincoln_less %>% 
   lm(sale_amount ~ buyer_loc * year_sold * parcel_longitude,
      data = .)
+
+library(modelsummary)
+library(kableExtra)
+
+models <- list()
+models[["1"]] <- mod_0
+models[["2"]] <- mod_1
+models[["3"]] <- mod_2
+models[["4"]] <- mod_3
+models[["5"]] <- mod_4
+
+modelsummary(models,
+             stars = c('*' = .05, '**' = .01, '***' = .001),
+             statistic = "std.error",
+             gof_map = c("nobs", "r.squared", "adj.r.squared"),
+             output = "out_small/table.png",
+             title = "Linear Regression Results")
+
