@@ -28,7 +28,17 @@ dat_flat_lincoln =
 
 dat_flat_lincoln %>% names %>% as_tibble %>% View
 
-dat_flat_lincoln_less = dat_flat_lincoln %>% select(sale_amount, year_sold, parcel_longitude, parcel_latitude)
+dat_flat_lincoln_less = 
+  dat_flat_lincoln %>% 
+  select(year_sold, 
+         sale_amount, 
+         buyer_loc, 
+         parcel_longitude, 
+         parcel_latitude) %>% 
+  mutate(buyer_loc = ifelse(buyer_loc %in% 1:2, 0, ifelse(buyer_loc == 99, NA, 1))) %>% # Is the buyer new to coastal OR? 
+  filter(year_sold %in% 2001:2025)
+
+#    Note that buyer location is only as good as mailing cities (per Stata code). 
 
 #   Spatial Data
 
@@ -52,11 +62,31 @@ dat_spat_lincoln_less = dat_spat_lincoln %>% select(OBJECTID)
 
 #  Descriptive Visualization
 
+#   Are sale amounts increasing with in-migration from a buyer mailing address outside coastal Oregon?
+
+library(ggridges)
+
+vis_inmigrate = 
+  dat_flat_lincoln_less %>% 
+  ggplot(aes(x = sale_amount %>% log, 
+             y = buyer_loc %>% factor,
+             fill = stat(x))) +
+  geom_density_ridges_gradient(scale = 1.33,
+                               quantile_lines = TRUE, 
+                               quantiles = 2) +
+  scale_x_continuous(expand = c(0, 0)) +
+  scale_y_discrete(expand = c(0, 0)) +
+  scale_fill_viridis(option = "C") +
+  labs(x = "Sale Amount (Log.) (Nominal?)",
+       y = "Incumbents (0), In-Migrants (1), ",
+       fill = NULL) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
 #   Are sale amounts increasing in time?
 
 vis_time = 
   dat_flat_lincoln_less %>% 
-  filter(year_sold %in% 2001:2025) %>% 
   ggplot() +
   geom_boxplot(aes(x = year_sold %>% factor,
                    y = sale_amount %>% log)) + 
@@ -64,25 +94,82 @@ vis_time =
        y = "Sale Amount (Log.) (Nominal?)") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
-  
+
 #   Are sale amounts decreasing in longitude (increasing in proximity to the coast)?
 
-#  Switch to a geom_raster.
+library(viridis)
 
 vis_longitude =
   dat_flat_lincoln_less %>% 
-  filter(year_sold %in% 2001:2025) %>% 
+  mutate(parcel_longitude_cut = parcel_longitude %>% cut(breaks = 100),
+         sale_amount_cut = sale_amount %>% log %>% cut(breaks = 100)) %>% 
+  group_by(parcel_longitude_cut, sale_amount_cut) %>% 
+  summarize(count = n()) %>% 
+  ungroup %>% 
+  complete(parcel_longitude_cut, sale_amount_cut) %>% 
+  mutate(count = count %>% replace_na(0)) %>% 
   ggplot() + 
-  geom_raster(aes(x = parcel_longitude,
-                 y = sale_amount %>% log),
-             alpha = 0.05) +
+  geom_raster(aes(x = parcel_longitude_cut,
+                  y = sale_amount_cut,
+                  fill = count)) +
+  scale_fill_viridis(option = "E") +
+  coord_fixed() +
   labs(x = "Longitude",
-       y = "Sale Amount (Log.) (Nominal?)") +
-  theme_minimal()
+       y = "Sale Amount (Log.) (Nominal?)",
+       fill = "Transactions") +
+  theme_minimal() +
+  theme(axis.text = element_blank(),
+        legend.ticks = element_blank())
 
 #  Are sale amounts decreasing in the product of longitude and years?  
 
+vis_both = 
+  dat_flat_lincoln_less %>% 
+  mutate(interaction = year_sold * parcel_longitude,
+         interaction_log = interaction %>% abs %>% log,
+         interaction_log_cut = interaction_log %>% cut(breaks = 100),
+         sale_amount_cut = sale_amount %>% log %>% cut(breaks = 100)) %>% 
+  group_by(interaction_log_cut, sale_amount_cut) %>% 
+  summarize(count = n()) %>% 
+  ungroup %>% 
+  complete(interaction_log_cut, sale_amount_cut) %>% 
+  mutate(count = count %>% replace_na(0)) %>% 
+  ggplot() + 
+  geom_raster(aes(x = interaction_log_cut,
+                  y = sale_amount_cut,
+                  fill = count)) +
+  scale_fill_viridis(option = "E") +
+  coord_fixed() +
+  labs(x = "Interaction of Year and Longitude (Abs. Value, Log.)",
+       y = "Sale Amount (Log.) (Nominal?)",
+       fill = "Transactions") +
+  theme_minimal() +
+  theme(axis.text = element_blank(),
+        legend.ticks = element_blank())
 
-#  Descriptive Model
+#  Descriptive Models
 
+mod_0 = 
+  dat_flat_lincoln_less %>% 
+  lm(sale_amount ~ buyer_loc,
+     data = .)
 
+mod_1 = 
+  dat_flat_lincoln_less %>% 
+  lm(sale_amount ~ year_sold,
+     data = .)
+
+mod_2 = 
+  dat_flat_lincoln_less %>% 
+  lm(sale_amount ~ parcel_longitude,
+     data = .)
+
+mod_3 = 
+  dat_flat_lincoln_less %>% 
+  lm(sale_amount ~ year_sold * parcel_longitude,
+     data = .)
+
+mod_4 = 
+  dat_flat_lincoln_less %>% 
+  lm(sale_amount ~ buyer_loc * year_sold * parcel_longitude,
+     data = .)

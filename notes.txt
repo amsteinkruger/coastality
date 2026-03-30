@@ -5,8 +5,13 @@
  - hedonics
  - coastal amenities
 
+problem: endogeneity in gentrification process
+
 ---
 
  - What's the ideal Oregon coastline (in available spatial data)?
  - Is there an easy reference for the hedonic ideal?
  - What's the deal with endogeneity in gentrification?
+ - Codes for "buyer_loc" with values {1, 2, 3, 4, 5, 6, 99}?
+    - Documented in .do. 1 same county, 2 other OR coastal county, 3-6 not OR coastal, 99 unknown. 
+    - Origin and limitations? 
