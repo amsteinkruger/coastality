@@ -63,6 +63,14 @@ dat_spat_lincoln_less = dat_spat_lincoln %>% select(OBJECTID)
 
 #  Descriptive Visualization
 
+#   What's the distribution of sale amounts over space?
+
+dat_lincoln_points = 
+  dat_flat_lincoln_less %>% 
+  vect(geom = c("parcel_longitude", "parcel_latitude"))
+
+dat_lincoln_points_bounds = dat_lincoln_points %>% bbox
+
 #   Are sale amounts increasing with in-migration from a buyer mailing address outside coastal Oregon?
 
 library(ggridges)
@@ -213,4 +221,3 @@ modelsummary(models,
              gof_map = c("nobs", "r.squared", "adj.r.squared"),
              output = "out_small/table.png",
              title = "Linear Regression Results")
-
