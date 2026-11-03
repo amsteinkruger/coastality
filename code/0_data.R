@@ -1,19 +1,48 @@
 # Data
 
-#  Coast (OR)
-
-dat_coast = "data/0_Coast.gdb" %>% vect
-
 #  Coastal Zone (OR)
 
-dat_zone = "data/0_Coastal_Zone_Boundary" %>% vect %>% mutate(Zone = 1, .keep = "none")
+dat_zone = 
+  "data/0_Coastal_Zone_Boundary" %>% 
+  vect %>% 
+  mutate(Zone = 1, .keep = "none")
 
 #  Elevation
-#  Portland
-#  Eugene
-#  101
+
+dat_dem_30 = 
+  "data/0_Elevation_30/Elevation.tif" %>% 
+  rast %>% 
+  project("EPSG:2992") %>% 
+  crop(dat_zone %>% project("EPSG:2992"))
+
+# dat_dem_10 = 
+
+#  Coast (OR)
+
+dat_coast = 
+  "data/0_Coast.gdb" %>% 
+  vect %>% 
+  mutate(Coast = 1, .keep = "none") %>% 
+  project("EPSG:2992") %>% 
+  as.points
+
+#   Sample vertices. This is useful for quick computation of distances, but wrong. 
+
+dat_coast_less = dat_coast %>% slice_sample(prop = 0.01)
+
 #  Beach Access
-#  Trail Access
+
+#  Tsunami Zone
+
+dat_tsunami = 
+  "data/0_Tsunami_Zone.gdb" %>% 
+  vect %>% 
+  filter(str_sub(Type, 1, 5) == "Local") %>% 
+  mutate(Tsunami = 1, .keep = "none") %>% 
+  project("EPSG:2992")
+
+#  101
+#  Cities (Portland, Salem, Corvallis, Eugene, Medford)
 
 #  Cotality
 
@@ -118,10 +147,31 @@ dat_ot_spatial =
   filter(FIPS_CODE %in% vec_counties_fips) %>% 
   select(CLIP, SALE_DERIVED_DATE) %>% 
   left_join(dat_pb_spatial, .) %>% 
-  drop_na(SALE_DERIVED_DATE)
+  drop_na(SALE_DERIVED_DATE) %>% 
+  project("EPSG:2992")
+
+# Compute spatial covariates for transfers. 
+
+# Elevation
+
+dat_ot_elevation = 
+  dat_ot_spatial %>% 
+  extract(dat_dem_30)
+
+
+# Viewsheds
+
+# Distance to Coast (High Mean Tide via CUSP)
+
+dat_ot_coast = 
+  dat_ot_spatial %>% 
+  nearest(dat_coast_less) %>% 
+  select(Distance_Coast = distance)
+
+# Tsunami Exposure
+
+dat_ot_tsunami = dat_ot_spatial %>% intersect(dat_tsunami)
 
 
 
-# Get all spatial variables onto dat_ot_spatial.
-# Combine for full panel.
-# ???
+
