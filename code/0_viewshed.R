@@ -26,7 +26,7 @@ ggplot() +
 ggplot() + 
   geom_spatraster(data = r) +
   geom_spatvector(data = p_vect, shape = 21, size = 3, fill = "white") +
-  geom_spatraster(data = v_1, alpha = 0.33) +
+  geom_spatraster(data = v_1, alpha = 0.66) +
   scale_fill_viridis(option = "A", na.value = NA) +
   theme_void() +
   theme(legend.position = "none")

@@ -1,16 +1,76 @@
- - read
- - wrangle
- - vis
- - trends
- - hedonics
- - coastal amenities
+ - Lincoln County
+ - Using points from PB to start
 
-problem: endogeneity in gentrification process
+Data
+
+ - (x) Coastal Management Zone
+ - (x) Tsunami Zone
+ - 101
+ - PDX
+ - Beach
+ - Beach Access
+ - Waterways
+ - Elevation
+ - NLCD
+ - (x) Cotality Property Basic
+ - (x) Cotality Owner Transfer
+
+ - Wishlist:
+    - Amenities
+       - Public -- schools, hospitals, harbors
+       - Private -- restaurants, grocery stores, outdoor rec businesses
+    - Age
+    - Renters, Tourists
+
+Computations
+
+ - Viewsheds -- area, area ocean, area forest
+ - Distances -- Tsunami, 101, PDX, Beach, Beach Access, Waterway
+
+Covariates
+
+ - Viewsheds
+ - Distances
+ - Boring (lot area, structure area, rooms, age since remodel, age)
+ - County FE
+
+Steps 
+
+Hedonics (Properties)
+Shift Shares (Ports)
+Coastal Engagement (Ports)
+
 
 ---
 
- - What's the ideal Oregon coastline (in available spatial data)?
- - Is there an easy reference for the hedonic ideal?
- - What's the deal with endogeneity in gentrification?
- - Codes for "buyer_loc" with values {1, 2, 3, 4, 5, 6, 99}?
-    - Documented in .do. 1 same county, 2 other OR coastal county, 3-6 not OR coastal, 99 unknown. 
+Older reference notes follow
+
+First, cluster + PCA on covariates; then highlight potential instruments (viewsheds, beach distance)
+
+Then panel IV with viewsheds, beach distance -- obtain amenity-driven exogenous variation in migration
+ - year FE?
+ - state FE if over states, county FE if unit within counties
+
+P(Inmigrant | X, Z)
+
+Then aggregate to obtain amenity-driven exogenous variation over whatever other spatial unit;
+then use to describe trends over time -- transactions by incumbent * inmigrant pairs (x4)
+then regress outcome of interest on aggregated number of inmigrants
+
+Problem: P(Inmigrant) abstracts out transaction prices, which are a main feature of the data
+ - specifically transaction prices provide the mechanism for displacement and community transformation
+Options: ???; SUR?
+
+*SLS?
+
+Problem: Coastal Zone is quite small
+Options: 
+ - Get city-level coastal engagement variable, then NN or other imputation to properties
+ - Get smaller-than-county continuous coastal engagement variable
+
+---
+
+Robot: Coastal Engagement <- Housing Prices <- Shocks in Origin Composition (shift-share instrument)
+
+
+
