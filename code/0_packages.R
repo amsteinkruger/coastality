@@ -3,6 +3,7 @@
 #  General
 
 library(tidyverse)
+library(furrr)
 
 #  Geospatial
 

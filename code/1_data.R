@@ -17,6 +17,8 @@ dat_dem_30 =
 
 # dat_dem_10 = 
 
+#  Land Cover
+
 #  Coast (OR)
 
 dat_coast = 
@@ -145,33 +147,104 @@ dat_ot =
 dat_ot_spatial = 
   dat_ot %>% 
   filter(FIPS_CODE %in% vec_counties_fips) %>% 
-  select(CLIP, SALE_DERIVED_DATE) %>% 
+  select(CLIP, OWNER_TRANSFER_COMPOSITE_TRANSACTION_ID, SALE_DERIVED_DATE) %>% 
   left_join(dat_pb_spatial, .) %>% 
   drop_na(SALE_DERIVED_DATE) %>% 
   project("EPSG:2992")
 
 # Compute spatial covariates for transfers. 
 
-# Elevation
+#  Elevation
 
 dat_ot_elevation = 
   dat_ot_spatial %>% 
-  extract(dat_dem_30)
+  extract(dat_dem_30, .) %>% 
+  select(Elevation) %>% 
+  mutate(Row = row_number()) %>% 
+  left_join(
+    dat_ot_spatial %>% mutate(Row = row_number()),
+    .
+  ) %>% 
+  select(-Row)
 
+#  Viewsheds
 
-# Viewsheds
+dat_dem_3000 = dat_dem_30 %>% aggregate(fact = 100)
 
-# Distance to Coast (High Mean Tide via CUSP)
+dat_dem_30_area = dat_dem_3000 %>% cellSize # This returns feet?
+dat_dem_30_area_ocean = dat_dem_30_area * (dat_dem_3000 >= 1)
+dat_dem_30_area_land = dat_dem_30_area * (dat_dem_3000 < 1)
+
+fun_views = 
+  function(vec_point, dat_dem, dat_area, dat_area_ocean){
+    
+    dat_view = viewshed(dat_dem, vec_point)
+    
+    dat_view_area = dat_view * dat_area
+    
+    dat_view_ocean = dat_view * dat_area_ocean
+    
+    val_total = as.numeric(global(dat_view_area, "sum", na.rm = TRUE) / 27878400)
+    val_ocean = as.numeric(global(dat_view_ocean,  "sum", na.rm = TRUE) / 27878400)
+    
+    dat_out = tibble(Viewshed_Total = val_total, Viewshed_Ocean = val_ocean)
+    
+    return(dat_out)
+    
+  }
+
+# plan(multisession, workers = 16)
+
+# set.seed(0112358)
+
+Sys.time()
+
+dat_views = 
+  dat_ot_spatial %>% 
+  slice_head(n = 10) %>% 
+  crds %>% 
+  as_tibble %>% 
+  mutate(Points = map2(x, y, c)) %>% 
+  select(Points) %>% 
+  mutate(Viewsheds = map(Points, ~ fun_views(.x, dat_dem_3000, dat_dem_30_area, dat_dem_30_area_ocean))) %>% # future_
+  select(Viewsheds) %>% 
+  unnest(Viewsheds)
+
+Sys.time()
+
+#  Distance to Coast (High Mean Tide via CUSP)
 
 dat_ot_coast = 
   dat_ot_spatial %>% 
   nearest(dat_coast_less) %>% 
   select(Distance_Coast = distance)
 
-# Tsunami Exposure
+#  Tsunami Exposure
 
 dat_ot_tsunami = dat_ot_spatial %>% intersect(dat_tsunami)
 
+# Join covariates to transfers.
 
+#  Remember to reduce OT to some smaller subset that might actually support estimation. 
+#  Remember to add some subset of PB covariates to OT, noting the snapshot/panel problem. 
+
+dat_ot_augment = 
+  dat_ot_spatial %>%
+  as_tibble %>% 
+  # left_join(
+  #   dat_ot,
+  #   by = c("CLIP", "OWNER_TRANSFER_COMPOSITE_TRANSACTION_ID", "SALE_DERIVED_DATE")
+  # ) %>% 
+  left_join(
+    dat_ot_elevation %>% as_tibble,
+    by = c("CLIP", "OWNER_TRANSFER_COMPOSITE_TRANSACTION_ID", "SALE_DERIVED_DATE")
+  ) %>% 
+  # bind_cols(dat_views %>% as_tibble) %>% 
+  bind_cols(dat_ot_coast %>% as_tibble) %>% 
+  left_join(
+    dat_ot_tsunami %>% as_tibble,
+    by = c("CLIP", "OWNER_TRANSFER_COMPOSITE_TRANSACTION_ID", "SALE_DERIVED_DATE")
+  ) %>% 
+  mutate(Tsunami = replace_na(Tsunami, 0))
 
 

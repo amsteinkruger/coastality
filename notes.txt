@@ -7,10 +7,10 @@ Data
  - (x) Tsunami Zone
  - 101
  - PDX
- - Beach
+ - (x) Beach
  - Beach Access
  - Waterways
- - Elevation
+ - (x) Elevation
  - NLCD
  - (x) Cotality Property Basic
  - (x) Cotality Owner Transfer
