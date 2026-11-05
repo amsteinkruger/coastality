@@ -139,7 +139,7 @@ dat_ot =
   select(all_of(vec_ot_names_use)) %>% 
   rename_with(~ str_replace_all(.x, " ", "_")) %>% 
   # Reduce data.
-  filter((SALE_DERIVED_DATE %>% str_sub(1, 4) %>% as.numeric) > 1999) %>% # Filter to transactions after 1999.
+  filter((SALE_DERIVED_DATE %>% str_sub(1, 4) %>% as.numeric) %in% 2000:2024) %>% # Filter to transactions after 1999.
   filter(PRIMARY_CATEGORY_CODE == "A") %>% # Filter to arms-length transactions. 
   filter(INVESTOR_PURCHASE_INDICATOR == 0) %>% # Filter to transactions without noted investment intent.
   filter(DEED_CATEGORY_TYPE_CODE == "G") %>% # Filter to transactions with deeds.
@@ -147,7 +147,7 @@ dat_ot =
   filter(RESIDENTIAL_INDICATOR == "Y") %>% # Filter to transactions for residential properties.
   filter(`PROPERTY_INDICATOR_CODE_-_STATIC` == "10") %>% # Filter to single-family residences.
   filter(INTERFAMILY_RELATED_INDICATOR == 0) %>% # Filter to transactions without family relationships.
-  filter(SHORT_SALE_INDICATOR == 0) # Filter to transactions without family relationships.
+  filter(SHORT_SALE_INDICATOR == 0) # Filter to transactions that are not short sales.
 
 #    Join to PB for spatial data. 
 
@@ -275,18 +275,23 @@ dat_ot_views =
       )
   ) %>% 
   select(Data) %>% 
-  unnest(Data) # %>% 
-  # left_join(
-  #   dat_ot_spatial %>% 
-  #     crds %>% 
-  #     as_tibble %>% 
-  #     mutate(Row = row_number()), 
-  #   .
-  # )
+  unnest(Data)  %>% 
+  # Rounding coordinates to ensure joins for all observations.
+  # This doesn't have a downside for Lincoln County (2026/11/05). 
+  mutate(x = x %>% round(0), y = y %>% round(0)) %>% 
+  left_join(
+    dat_ot_spatial %>%
+      crds %>%
+      as_tibble %>% 
+      mutate(x = x %>% round(0), y = y %>% round(0)),
+    .
+  ) %>% 
+  select(starts_with("Viewshed")) %T>% 
+  write_csv("intermediate/dat_ot_views.csv")
 
 Sys.time()
 
-# ~6 hours for all observations?
+# ~3.6 hours for ~15,000 observations.
 
 #  Distance to Coast (High Mean Tide via CUSP)
 
@@ -307,15 +312,55 @@ dat_ot_tsunami = dat_ot_spatial %>% intersect(dat_tsunami)
 dat_ot_augment = 
   dat_ot_spatial %>%
   as_tibble %>% 
-  # left_join(
-  #   dat_ot,
-  #   by = c("CLIP", "OWNER_TRANSFER_COMPOSITE_TRANSACTION_ID", "SALE_DERIVED_DATE")
-  # ) %>% 
+  left_join(
+    dat_ot %>% 
+      select(
+        CLIP,
+        OWNER_TRANSFER_COMPOSITE_TRANSACTION_ID,
+        SALE_DERIVED_DATE,
+        `ACTUAL_YEAR_BUILT_-_STATIC`,
+        `EFFECTIVE_YEAR_BUILT_-_STATIC`,
+        SALE_TYPE_CODE,
+        SALE_AMOUNT,
+        CASH_PURCHASE_INDICATOR,
+        MORTGAGE_PURCHASE_INDICATOR,
+        BUYER_OCCUPANCY_CODE,
+        starts_with("BUYER_MAILING"),
+      ),
+    by = c("CLIP", "OWNER_TRANSFER_COMPOSITE_TRANSACTION_ID", "SALE_DERIVED_DATE")
+  ) %>%
+  left_join(
+    dat_pb %>% 
+      select(
+        CLIP,
+        LAND_USE_CODE,
+        ZONING_CODE,
+        NUMBER_OF_BUILDINGS,
+        VIEW_CODE,
+        starts_with("PARCEL_LEVEL"),
+        ACRES,
+        LAND_SQUARE_FOOTAGE,
+        `BEDROOMS_-_ALL_BUILDINGS`,
+        `TOTAL_BATHROOMS_-_ALL_BUILDINGS`,
+        `TOTAL_ROOMS_-_ALL_BUILDINGS`,
+        starts_with("BASEMENT"),
+        GARAGE_CODE,
+        HEATING_TYPE_CODE,
+        BUILDING_QUALITY_CODE,
+        UNIVERSAL_BUILDING_SQUARE_FEET,
+        BUILDING_SQUARE_FEET,
+        `LIVING_SQUARE_FEET_-_ALL_BUILDINGS`,
+        FUEL_CODE,
+        `ELECTRICITY/WIRING_CODE`,
+        SEWER_CODE
+      ),
+    by = "CLIP"
+  ) %>%
   left_join(
     dat_ot_elevation %>% as_tibble,
     by = c("CLIP", "OWNER_TRANSFER_COMPOSITE_TRANSACTION_ID", "SALE_DERIVED_DATE")
   ) %>% 
-  bind_cols(dat_ot_views %>% as_tibble) %>%
+  bind_cols(dat_ot_views_join) %>%
   bind_cols(dat_ot_coast %>% as_tibble) %>% 
   left_join(
     dat_ot_tsunami %>% as_tibble,
