@@ -1,5 +1,12 @@
 # Data
 
+#  Contents:
+#   Covariates
+#   Cotality
+#   Spatial Operations
+#   Joins
+#   Export
+
 #  Coastal Zone (OR)
 
 dat_zone = 
@@ -158,7 +165,7 @@ dat_ot_spatial =
 
 dat_ot_elevation = 
   dat_ot_spatial %>% 
-  extract(dat_dem_30, .) %>% 
+  terra::extract(dat_dem_30, .) %>% 
   select(Elevation) %>% 
   mutate(Row = row_number()) %>% 
   left_join(
@@ -169,13 +176,56 @@ dat_ot_elevation =
 
 #  Viewsheds
 
-dat_dem_3000 = dat_dem_30 %>% aggregate(fact = 100)
+#   Viewsheds are computationally intensive; parallelization helps. 
 
-dat_dem_30_area = dat_dem_3000 %>% cellSize # This returns feet?
-dat_dem_30_area_ocean = dat_dem_30_area * (dat_dem_3000 >= 1)
-dat_dem_30_area_land = dat_dem_30_area * (dat_dem_3000 < 1)
+#   Write data to disk for reading into parallel environments. 
 
-fun_views = 
+writeRaster(dat_dem_30, "intermediate/dat_dem_30.tif", overwrite = TRUE)
+
+dat_dem_30_area = 
+  dat_dem_30 %>% 
+  cellSize %T>% 
+  writeRaster("intermediate/dat_dem_30_area.tif", overwrite = TRUE) # This returns feet?
+
+dat_dem_30_area_ocean = 
+  (dat_dem_30_area * (dat_dem_30 <= 1)) %T>% 
+  writeRaster("intermediate/dat_dem_30_area_ocean.tif", overwrite = TRUE)
+
+dat_ot_spatial %>% 
+  crds %>% 
+  as_tibble %>% 
+  distinct %T>% 
+  write_csv("intermediate/dat_ot_coordinates.csv")
+
+#   Define functions to parallelize. 
+  
+fun_views_outer = 
+  function(dat_point, path_dem, path_area, path_area_ocean){
+    
+    dat_dem = path_dem %>% rast
+    dat_area = path_area %>% rast
+    dat_area_ocean = path_area_ocean %>% rast
+    
+    dat = 
+      dat_point %>% 
+      # slice_head(n = 3) %>% # Testing. 
+      mutate(Points = map2(x, y, c)) %>% 
+      mutate(
+        Viewsheds = 
+          Points %>% 
+          map(
+            fun_views_inner, 
+            dat_dem = dat_dem,
+            dat_area = dat_area,
+            dat_area_ocean = dat_area_ocean
+          )
+      ) %>% 
+      select(-Points) %>% 
+      unnest(Viewsheds)
+    
+  }
+
+fun_views_inner = 
   function(vec_point, dat_dem, dat_area, dat_area_ocean){
     
     dat_view = viewshed(dat_dem, vec_point)
@@ -193,24 +243,50 @@ fun_views =
     
   }
 
-# plan(multisession, workers = 16)
+#   Set up parallelization. 
 
-# set.seed(0112358)
+par_cores = 16
+
+plan(multisession, workers = par_cores)
+
+set.seed(0112358)
+
+#   Compute viewsheds in parallel. 
+
+Sys.time()
+
+dat_ot_views = 
+  tibble(Group = 1:par_cores) %>% 
+  mutate(
+    Data = 
+      Group %>% 
+      future_map(
+        ~ "intermediate/dat_ot_coordinates.csv" %>% 
+          read_csv %>% 
+          mutate(Group = (row_number() * par_cores / nrow(.)) %>% ceiling) %>% 
+          filter(Group == .x) %>% 
+          select(-Group) %>% 
+          fun_views_outer(
+            path_dem = "intermediate/dat_dem_30.tif",
+            path_area = "intermediate/dat_dem_30_area.tif",
+            path_area_ocean = "intermediate/dat_dem_30_area_ocean.tif"
+          ), 
+        .options = furrr_options(seed = TRUE)
+      )
+  ) %>% 
+  select(Data) %>% 
+  unnest(Data) # %>% 
+  # left_join(
+  #   dat_ot_spatial %>% 
+  #     crds %>% 
+  #     as_tibble %>% 
+  #     mutate(Row = row_number()), 
+  #   .
+  # )
 
 Sys.time()
 
-dat_views = 
-  dat_ot_spatial %>% 
-  slice_head(n = 10) %>% 
-  crds %>% 
-  as_tibble %>% 
-  mutate(Points = map2(x, y, c)) %>% 
-  select(Points) %>% 
-  mutate(Viewsheds = map(Points, ~ fun_views(.x, dat_dem_3000, dat_dem_30_area, dat_dem_30_area_ocean))) %>% # future_
-  select(Viewsheds) %>% 
-  unnest(Viewsheds)
-
-Sys.time()
+# ~6 hours for all observations?
 
 #  Distance to Coast (High Mean Tide via CUSP)
 
@@ -239,12 +315,11 @@ dat_ot_augment =
     dat_ot_elevation %>% as_tibble,
     by = c("CLIP", "OWNER_TRANSFER_COMPOSITE_TRANSACTION_ID", "SALE_DERIVED_DATE")
   ) %>% 
-  # bind_cols(dat_views %>% as_tibble) %>% 
+  bind_cols(dat_ot_views %>% as_tibble) %>%
   bind_cols(dat_ot_coast %>% as_tibble) %>% 
   left_join(
     dat_ot_tsunami %>% as_tibble,
     by = c("CLIP", "OWNER_TRANSFER_COMPOSITE_TRANSACTION_ID", "SALE_DERIVED_DATE")
   ) %>% 
-  mutate(Tsunami = replace_na(Tsunami, 0))
-
-
+  mutate(Tsunami = replace_na(Tsunami, 0)) %T>% 
+  write_csv("intermediate/dat_panel.csv")
