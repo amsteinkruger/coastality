@@ -5,7 +5,6 @@
 library(tidyverse)
 library(magrittr)
 library(furrr)
-library(flextable)
 library(modelsummary)
 library(ggpubr)
 
