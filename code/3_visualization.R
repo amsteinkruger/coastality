@@ -12,6 +12,20 @@ dat =
     BUYER_OCCUPANCY_CODE_BINARY = (BUYER_OCCUPANCY_CODE %in% c("M", "O", "S"))
   )
 
+# Buyer States, Table and Figure
+
+dat %>% 
+  select(BUYER_MAILING_STATE, BUYER_MAILING_STATE_BINARY) %>% 
+  group_by(BUYER_MAILING_STATE) %>% 
+  summarize(Count = n()) %>% 
+  ungroup %>% 
+  arrange(desc(Count)) %T>% 
+  write_csv("intermediate/tab_states_count.csv") %>% 
+  mutate(BUYER_MAILING_STATE = BUYER_MAILING_STATE %>% factor %>% fct_reorder(Count)) %>% 
+  ggplot() + 
+  geom_col(aes(x = BUYER_MAILING_STATE, y = Count)) 
+
+
 #  Buyer States by Year
 
 vis = 
